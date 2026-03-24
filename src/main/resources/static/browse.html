@@ -170,6 +170,29 @@
             padding: 40px;
             font-size: 18px;
         }
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            gap: 20px;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: #666;
+            font-size: 16px;
+        }
         .pagination {
             display: flex;
             justify-content: center;
@@ -230,7 +253,11 @@
                     <label for="filterReturned">Returned</label>
                 </div>
             </div>
-            <div id="itemsList" class="items-grid"></div>
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Loading items...</div>
+            </div>
+            <div id="itemsList" class="items-grid" style="display: none;"></div>
             <div id="pagination" class="pagination" style="display: none;">
                 <button id="prevPage">Previous</button>
                 <span class="page-info">
@@ -247,7 +274,16 @@
         let totalPages = 0;
 
         async function loadItems(page = 0) {
+            const loadingEl = document.getElementById('loading');
+            const itemsListEl = document.getElementById('itemsList');
+            const paginationEl = document.getElementById('pagination');
+
             try {
+                // Show loading state
+                loadingEl.style.display = 'flex';
+                itemsListEl.style.display = 'none';
+                paginationEl.style.display = 'none';
+
                 // Get selected filters
                 const selectedStatuses = [];
                 if (document.getElementById('filterFound').checked) selectedStatuses.push('FOUND');
@@ -268,8 +304,15 @@
 
                 displayItems(data.content);
                 updatePagination(data);
+
+                // Hide loading, show content
+                loadingEl.style.display = 'none';
+                itemsListEl.style.display = 'grid';
             } catch (error) {
                 console.error('Error loading items:', error);
+                loadingEl.style.display = 'none';
+                itemsListEl.style.display = 'grid';
+                itemsListEl.innerHTML = '<div class="empty-state">Error loading items. Please try again.</div>';
             }
         }
 
@@ -277,7 +320,7 @@
             const container = document.getElementById('itemsList');
 
             if (items.length === 0) {
-                container.innerHTML = '<div class="empty-state">No items found.</div>';
+                container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">No items found.</div>';
                 return;
             }
 

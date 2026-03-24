@@ -63,6 +63,21 @@
             resize: vertical;
             min-height: 80px;
         }
+        input[type="file"] {
+            padding: 8px;
+        }
+        .image-preview {
+            margin-top: 10px;
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            display: none;
+        }
+        .file-info {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -76,6 +91,11 @@
         button:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
         .items-grid {
             display: grid;
@@ -93,6 +113,13 @@
         .item-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        .item-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 15px;
         }
         .item-card h3 {
             color: #333;
@@ -145,6 +172,14 @@
             padding: 40px;
             font-size: 18px;
         }
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -153,7 +188,7 @@
 
         <div class="form-card">
             <h2>Report an Item</h2>
-            <form id="itemForm">
+            <form id="itemForm" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="name">Item Name *</label>
                     <input type="text" id="name" required>
@@ -173,7 +208,14 @@
                         <option value="FOUND">Found</option>
                     </select>
                 </div>
-                <button type="submit">Submit Item</button>
+                <div class="form-group">
+                    <label for="image">Image (max 5MB)</label>
+                    <input type="file" id="image" accept="image/*">
+                    <img id="imagePreview" class="image-preview" />
+                    <div id="fileInfo" class="file-info"></div>
+                </div>
+                <div id="errorMessage" class="error-message"></div>
+                <button type="submit" id="submitBtn">Submit Item</button>
             </form>
         </div>
 
@@ -185,6 +227,39 @@
 
     <script>
         const API_URL = '/api/items';
+
+        // Image preview
+        document.getElementById('image').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            const fileInfo = document.getElementById('fileInfo');
+
+            if (file) {
+                // Check file size
+                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+                if (file.size > 5 * 1024 * 1024) {
+                    fileInfo.textContent = `File too large: ${sizeMB}MB (max 5MB)`;
+                    fileInfo.style.color = '#c33';
+                    e.target.value = '';
+                    preview.style.display = 'none';
+                    return;
+                }
+
+                fileInfo.textContent = `Selected: ${file.name} (${sizeMB}MB)`;
+                fileInfo.style.color = '#666';
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+                fileInfo.textContent = '';
+            }
+        });
 
         async function loadItems() {
             try {
@@ -206,6 +281,7 @@
 
             container.innerHTML = items.map(item => `
                 <div class="item-card">
+                    ${item.imagePath ? `<img src="/api/items/images/${item.imagePath}" class="item-image" alt="${escapeHtml(item.name)}">` : ''}
                     <h3>${escapeHtml(item.name)}</h3>
                     <p><strong>Status:</strong> <span class="status-badge status-${item.status}">${item.status}</span></p>
                     ${item.description ? `<p><strong>Description:</strong> ${escapeHtml(item.description)}</p>` : ''}
@@ -225,10 +301,12 @@
             const newStatus = statuses[(currentIndex + 1) % statuses.length];
 
             try {
+                const formData = new FormData();
+                formData.append('status', newStatus);
+
                 await fetch(`${API_URL}/${id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: newStatus })
+                    body: formData
                 });
                 loadItems();
             } catch (error) {
@@ -254,25 +332,45 @@
         document.getElementById('itemForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const item = {
-                name: document.getElementById('name').value,
-                description: document.getElementById('description').value,
-                location: document.getElementById('location').value,
-                status: document.getElementById('status').value
-            };
+            const submitBtn = document.getElementById('submitBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
+
+            const formData = new FormData();
+            formData.append('name', document.getElementById('name').value);
+            formData.append('description', document.getElementById('description').value);
+            formData.append('location', document.getElementById('location').value);
+            formData.append('status', document.getElementById('status').value);
+
+            const imageFile = document.getElementById('image').files[0];
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
 
             try {
-                await fetch(API_URL, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(item)
+                    body: formData
                 });
 
+                if (!response.ok) {
+                    const error = await response.text();
+                    throw new Error(error);
+                }
+
                 e.target.reset();
+                document.getElementById('imagePreview').style.display = 'none';
+                document.getElementById('fileInfo').textContent = '';
                 loadItems();
             } catch (error) {
                 console.error('Error creating item:', error);
-                alert('Failed to create item');
+                errorMessage.textContent = 'Failed to create item: ' + error.message;
+                errorMessage.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Item';
             }
         });
 

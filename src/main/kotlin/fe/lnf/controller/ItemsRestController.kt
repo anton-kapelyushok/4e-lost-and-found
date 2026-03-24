@@ -3,15 +3,22 @@ package fe.lnf.controller
 import fe.lnf.model.ItemStatus
 import fe.lnf.model.LostItem
 import fe.lnf.repository.LostItemRepository
+import fe.lnf.service.ImageService
+import org.springframework.core.io.FileSystemResource
+import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 
 @RestController
 @RequestMapping("/api/items")
 @CrossOrigin(origins = ["*"])
 class ItemsRestController(
-    private val repository: LostItemRepository
+    private val repository: LostItemRepository,
+    private val imageService: ImageService
 ) {
 
     @GetMapping
@@ -30,28 +37,65 @@ class ItemsRestController(
         return repository.findByStatus(status)
     }
 
-    @PostMapping
+    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @ResponseStatus(HttpStatus.CREATED)
-    fun createItem(@RequestBody request: CreateItemRequest): LostItem {
+    fun createItem(
+        @RequestParam name: String,
+        @RequestParam(required = false) description: String?,
+        @RequestParam(required = false) location: String?,
+        @RequestParam(required = false) status: ItemStatus?,
+        @RequestParam(required = false) image: MultipartFile?
+    ): LostItem {
+        // Save image if provided
+        val imagePath = image?.let {
+            try {
+                imageService.saveImage(it)
+            } catch (e: IllegalArgumentException) {
+                throw ResponseStatusException(HttpStatus.BAD_REQUEST, e.message)
+            }
+        }
+
         val item = LostItem(
-            name = request.name,
-            description = request.description,
-            location = request.location,
-            status = request.status ?: ItemStatus.LOST
+            name = name,
+            description = description,
+            location = location,
+            status = status ?: ItemStatus.LOST,
+            imagePath = imagePath
         )
         return repository.save(item)
     }
 
-    @PutMapping("/{id}")
-    fun updateItem(@PathVariable id: Long, @RequestBody request: UpdateItemRequest): LostItem {
+    @PutMapping("/{id}", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun updateItem(
+        @PathVariable id: Long,
+        @RequestParam(required = false) name: String?,
+        @RequestParam(required = false) description: String?,
+        @RequestParam(required = false) location: String?,
+        @RequestParam(required = false) status: ItemStatus?,
+        @RequestParam(required = false) image: MultipartFile?
+    ): LostItem {
         val existing = repository.findById(id)
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found") }
 
+        // Handle image update
+        var newImagePath = existing.imagePath
+        if (image != null) {
+            // Delete old image
+            imageService.deleteImage(existing.imagePath)
+            // Save new image
+            try {
+                newImagePath = imageService.saveImage(image)
+            } catch (e: IllegalArgumentException) {
+                throw ResponseStatusException(HttpStatus.BAD_REQUEST, e.message)
+            }
+        }
+
         val updated = existing.copy(
-            name = request.name ?: existing.name,
-            description = request.description ?: existing.description,
-            location = request.location ?: existing.location,
-            status = request.status ?: existing.status,
+            name = name ?: existing.name,
+            description = description ?: existing.description,
+            location = location ?: existing.location,
+            status = status ?: existing.status,
+            imagePath = newImagePath,
             updatedAt = java.time.LocalDateTime.now()
         )
         return repository.save(updated)
@@ -60,10 +104,37 @@ class ItemsRestController(
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteItem(@PathVariable id: Long) {
-        if (!repository.existsById(id)) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found")
-        }
+        val item = repository.findById(id)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found") }
+
+        // Delete image if exists
+        imageService.deleteImage(item.imagePath)
+
         repository.deleteById(id)
+    }
+
+    @GetMapping("/images/{filename}")
+    fun getImage(@PathVariable filename: String): ResponseEntity<Resource> {
+        val imagePath = imageService.getImagePath(filename)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Image not found")
+
+        val resource = FileSystemResource(imagePath)
+        if (!resource.exists()) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Image not found")
+        }
+
+        // Determine content type
+        val contentType = when (filename.substringAfterLast('.').lowercase()) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            else -> "application/octet-stream"
+        }
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(contentType))
+            .body(resource)
     }
 }
 

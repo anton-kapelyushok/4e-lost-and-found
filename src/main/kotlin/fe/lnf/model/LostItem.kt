@@ -12,6 +12,7 @@ data class LostItem(
     val description: String? = null,
     val location: String? = null,
     val status: ItemStatus = ItemStatus.LOST,
+    val imagePath: String? = null,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val updatedAt: LocalDateTime = LocalDateTime.now()
 )

@@ -28,6 +28,8 @@ services:
       - DATABASE_URL=jdbc:postgresql://db:5432/${POSTGRES_DB:-lnf}
       - DATABASE_USERNAME=${POSTGRES_USER:-lnf}
       - DATABASE_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - ./uploads:/uploads
     depends_on:
       db:
         condition: service_healthy

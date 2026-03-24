@@ -12,8 +12,8 @@ import java.util.*
 @Service
 class ImageService(
     @Value("\${app.upload.dir:/uploads}") private val uploadDir: String,
-    @Value("\${app.upload.max-size:5242880}") private val maxFileSize: Long, // 5MB default
-    @Value("\${app.upload.target-size:1048576}") private val targetSize: Long // 1MB default
+    @Value("\${app.upload.max-size:10485760}") private val maxFileSize: Long, // 10MB default
+    @Value("\${app.upload.target-size:512000}") private val targetSize: Long // 500KB default
 ) {
 
     init {

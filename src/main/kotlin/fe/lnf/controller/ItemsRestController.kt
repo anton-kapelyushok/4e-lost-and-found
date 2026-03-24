@@ -6,6 +6,10 @@ import fe.lnf.repository.LostItemRepository
 import fe.lnf.service.ImageService
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -22,8 +26,29 @@ class ItemsRestController(
 ) {
 
     @GetMapping
-    fun getAllItems(): List<LostItem> {
-        return repository.findAllOrderByCreatedAtDesc()
+    fun getAllItems(
+        @RequestParam(required = false) status: List<String>?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): Page<LostItem> {
+        // Get all items (already sorted by created_at DESC)
+        val allItems = if (status.isNullOrEmpty()) {
+            repository.findAllOrderByCreatedAtDesc()
+        } else {
+            repository.findByStatusInOrderByCreatedAtDesc(status)
+        }
+
+        // Manual pagination
+        val start = page * size
+        val end = minOf(start + size, allItems.size)
+        val pageContent = if (start < allItems.size) {
+            allItems.subList(start, end)
+        } else {
+            emptyList()
+        }
+
+        val pageable = PageRequest.of(page, size)
+        return PageImpl(pageContent, pageable, allItems.size.toLong())
     }
 
     @GetMapping("/{id}")
@@ -59,7 +84,7 @@ class ItemsRestController(
             name = name,
             description = description,
             location = location,
-            status = status ?: ItemStatus.LOST,
+            status = status ?: ItemStatus.FOUND,
             imagePath = imagePath
         )
         return repository.save(item)

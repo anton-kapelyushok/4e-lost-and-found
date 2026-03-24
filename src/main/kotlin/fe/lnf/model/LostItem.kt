@@ -11,12 +11,12 @@ data class LostItem(
     val name: String,
     val description: String? = null,
     val location: String? = null,
-    val status: ItemStatus = ItemStatus.LOST,
+    val status: ItemStatus = ItemStatus.FOUND,
     val imagePath: String? = null,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val updatedAt: LocalDateTime = LocalDateTime.now()
 )
 
 enum class ItemStatus {
-    LOST, FOUND, CLAIMED
+    FOUND, CLAIMED, RETURNED
 }

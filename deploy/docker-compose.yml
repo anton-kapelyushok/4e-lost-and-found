@@ -20,6 +20,7 @@ services:
   app:
     # Replace 'toxoed' with your Docker Hub username
     image: toxoed/fe-lnf:latest
+    pull_policy: always
     container_name: fe-lnf-app
     ports:
       - "80:8080"

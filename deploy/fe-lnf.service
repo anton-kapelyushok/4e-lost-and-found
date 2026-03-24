@@ -4,16 +4,15 @@ Requires=docker.service
 After=docker.service
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=/home/YOUR_USERNAME/fe-lnf-deploy
-EnvironmentFile=/home/YOUR_USERNAME/fe-lnf-deploy/.env
+Type=simple
+WorkingDirectory=/home/anton/4e-lost-and-found/deploy
+EnvironmentFile=/home/anton/4e-lost-and-found/deploy/.env
 
 # Start
-ExecStart=/usr/bin/docker-compose up -d
+ExecStart=/usr/bin/docker compose up
 
 # Stop
-ExecStop=/usr/bin/docker-compose down
+ExecStop=/usr/bin/docker compose down
 
 # Restart on failure
 Restart=on-failure

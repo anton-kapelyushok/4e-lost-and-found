@@ -159,6 +159,38 @@ docker-compose down
 
 **Important:** The `.env` file contains sensitive credentials. Make sure it's secured with `chmod 600 .env` and never committed to git.
 
+### Managing the Deployed Application
+
+See **[deploy/OPERATIONS.md](deploy/OPERATIONS.md)** for comprehensive guide on:
+- Checking status and viewing logs
+- Restarting services when they fail
+- Updating to new versions
+- Database backup and restore
+- Troubleshooting common issues
+
+**Quick reference:**
+
+```bash
+# Check status
+docker-compose ps
+docker-compose logs -f
+
+# Restart services
+docker-compose restart              # Restart all
+docker-compose restart app          # Restart only app
+docker-compose restart db           # Restart only database
+
+# Update to latest version
+docker-compose pull
+docker-compose up -d
+
+# Backup database
+docker exec fe-lnf-db pg_dump -U lnf lnf > backup.sql
+
+# View application
+curl http://localhost:8080/api/items
+```
+
 ### Security Notes
 
 ✅ **PostgreSQL is NOT exposed to the internet** - It's only accessible within the Docker network

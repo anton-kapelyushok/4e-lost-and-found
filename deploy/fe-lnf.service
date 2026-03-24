@@ -1,0 +1,23 @@
+[Unit]
+Description=Lost and Found Application
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/YOUR_USERNAME/fe-lnf-deploy
+EnvironmentFile=/home/YOUR_USERNAME/fe-lnf-deploy/.env
+
+# Start
+ExecStart=/usr/bin/docker-compose up -d
+
+# Stop
+ExecStop=/usr/bin/docker-compose down
+
+# Restart on failure
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

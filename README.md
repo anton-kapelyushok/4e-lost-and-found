@@ -159,6 +159,28 @@ docker-compose down
 
 **Important:** The `.env` file contains sensitive credentials. Make sure it's secured with `chmod 600 .env` and never committed to git.
 
+### Setting Up Auto-Start on Boot
+
+To ensure the application starts automatically on server boot and restarts on failure, set up systemd:
+
+```bash
+cd ~/fe-lnf-deploy
+
+# Customize the service file
+sed -i "s|YOUR_USERNAME|$USER|g" fe-lnf.service
+
+# Install and enable
+sudo cp fe-lnf.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable fe-lnf
+sudo systemctl start fe-lnf
+
+# Check status
+sudo systemctl status fe-lnf
+```
+
+See **[deploy/SYSTEMD_SETUP.md](deploy/SYSTEMD_SETUP.md)** for complete setup and management guide.
+
 ### Managing the Deployed Application
 
 See **[deploy/OPERATIONS.md](deploy/OPERATIONS.md)** for comprehensive guide on:

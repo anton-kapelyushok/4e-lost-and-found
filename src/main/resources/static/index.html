@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lost & Found</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .form-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .form-card h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .item-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .item-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        .item-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .item-card p {
+            color: #666;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-LOST {
+            background: #fee;
+            color: #c33;
+        }
+        .status-FOUND {
+            background: #efe;
+            color: #3c3;
+        }
+        .status-CLAIMED {
+            background: #eef;
+            color: #33c;
+        }
+        .item-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .item-actions button {
+            flex: 1;
+            padding: 8px;
+            font-size: 14px;
+        }
+        .delete-btn {
+            background: #dc3545;
+        }
+        .delete-btn:hover {
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+        .empty-state {
+            text-align: center;
+            color: white;
+            padding: 40px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Lost & Found</h1>
+
+        <div class="form-card">
+            <h2>Report an Item</h2>
+            <form id="itemForm">
+                <div class="form-group">
+                    <label for="name">Item Name *</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="location">Location</label>
+                    <input type="text" id="location">
+                </div>
+                <div class="form-group">
+                    <label for="status">Status *</label>
+                    <select id="status" required>
+                        <option value="LOST">Lost</option>
+                        <option value="FOUND">Found</option>
+                    </select>
+                </div>
+                <button type="submit">Submit Item</button>
+            </form>
+        </div>
+
+        <div class="form-card">
+            <h2>All Items</h2>
+            <div id="itemsList" class="items-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/items';
+
+        async function loadItems() {
+            try {
+                const response = await fetch(API_URL);
+                const items = await response.json();
+                displayItems(items);
+            } catch (error) {
+                console.error('Error loading items:', error);
+            }
+        }
+
+        function displayItems(items) {
+            const container = document.getElementById('itemsList');
+
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-state">No items yet. Be the first to report one!</div>';
+                return;
+            }
+
+            container.innerHTML = items.map(item => `
+                <div class="item-card">
+                    <h3>${escapeHtml(item.name)}</h3>
+                    <p><strong>Status:</strong> <span class="status-badge status-${item.status}">${item.status}</span></p>
+                    ${item.description ? `<p><strong>Description:</strong> ${escapeHtml(item.description)}</p>` : ''}
+                    ${item.location ? `<p><strong>Location:</strong> ${escapeHtml(item.location)}</p>` : ''}
+                    <p><strong>Reported:</strong> ${new Date(item.createdAt).toLocaleDateString()}</p>
+                    <div class="item-actions">
+                        <button onclick="updateStatus(${item.id}, '${item.status}')">Change Status</button>
+                        <button class="delete-btn" onclick="deleteItem(${item.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateStatus(id, currentStatus) {
+            const statuses = ['LOST', 'FOUND', 'CLAIMED'];
+            const currentIndex = statuses.indexOf(currentStatus);
+            const newStatus = statuses[(currentIndex + 1) % statuses.length];
+
+            try {
+                await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                loadItems();
+            } catch (error) {
+                console.error('Error updating item:', error);
+                alert('Failed to update item');
+            }
+        }
+
+        async function deleteItem(id) {
+            if (!confirm('Are you sure you want to delete this item?')) return;
+
+            try {
+                await fetch(`${API_URL}/${id}`, {
+                    method: 'DELETE'
+                });
+                loadItems();
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                alert('Failed to delete item');
+            }
+        }
+
+        document.getElementById('itemForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const item = {
+                name: document.getElementById('name').value,
+                description: document.getElementById('description').value,
+                location: document.getElementById('location').value,
+                status: document.getElementById('status').value
+            };
+
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(item)
+                });
+
+                e.target.reset();
+                loadItems();
+            } catch (error) {
+                console.error('Error creating item:', error);
+                alert('Failed to create item');
+            }
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        loadItems();
+    </script>
+</body>
+</html>
